@@ -1,0 +1,56 @@
+version: '3'
+services:
+  dbt-database:
+    image: mongo
+    restart: always
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    volumes:
+      - mongodb:/data/db
+    ports:
+      - 27017:27017
+  mongo-express:
+    image: mongo-express
+    restart: always
+    depends_on:
+      - dbt-database
+    ports:
+      - 8081:8081
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=dbt-database
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=password
+  dbt-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    depends_on:
+      - dbt-database
+    volumes:
+      - /app/node_modules
+      - ./server:/app
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGO_USERNAME=admin
+      - MONGO_PASSWORD=password
+      - CHOKIDAR_USEPOLLING=true
+  dbt-client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    depends_on:
+      - dbt-server
+    stdin_open: true
+    tty: true
+    volumes:
+      - /app/node_modules
+      - ./client:/app
+    ports:
+      - "8080:8080"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - PORT=8080
+volumes:
+  mongodb:
